@@ -1,170 +1,219 @@
-NHL Data Pipeline (2025–26 Season)
+# NHL Data Warehouse – PostgreSQL + Python Scraping Pipeline
 
-This project builds a full NHL data pipeline using the unofficial NHL API, the Python package nhl-api-py, and a PostgreSQL database.
-It automatically retrieves:
+End-to-end NHL analytics data warehouse built by scraping official NHL data with Python and modeling it into a star-schema warehouse in PostgreSQL.
 
-NHL teams
+This project demonstrates **data ingestion, normalization, dimensional modeling, and analytics-ready design** for large-scale sports data.
 
-The full season schedule
+---
 
-Boxscore data for every game
+## Project Overview
 
-Player metadata
+This project builds a complete NHL analytics warehouse using:
 
-Player game-by-game statistics
+- Python (nhlpy + psycopg2) for data ingestion
+- PostgreSQL as the data warehouse
+- DBeaver for SQL development
+- Star schema dimensional modeling
+- Fact tables at multiple grains (game, team, player, event)
 
-All data is stored in a relational SQL schema suitable for analytics, modelling, dashboards, and machine learning.
+The warehouse supports advanced analytics such as:
 
-Features
-Feature	Status
-Fetch NHL teams and map unique abbreviations	✓
-Store all games for the 2025–26 season	✓
-Fetch boxscore stats for every game	✓
-Populate players and player_game_stats tables	✓
-Incremental updates (planned)	In progress
-Play-by-play + xG model	Future milestone
-Tech Stack
-Component	Choice
-Language	Python 3.11+
-Data Source	nhl-api-py (unofficial NHL API wrapper)
-Database	PostgreSQL (recommended version ≥ 15)
-GUI	DBeaver (optional)
-Installation
+- Player performance analysis  
+- Goalie vs skater comparisons  
+- Team performance by game and season  
+- Event-level spatial analysis  
 
-Clone the project:
+---
 
-git clone https://github.com/YOURUSERNAME/nhl-2025-26-db.git
-cd nhl-2025-26-db
+## Architecture
 
+### Pipeline
 
-Install dependencies:
+NHL API → Python Scrapers → PostgreSQL (nhl_dw schema) → Analytics / BI / SQL
 
-pip install -r requirements.txt
+yaml
+Kopioi koodi
 
+### Core Design Principles
 
-(Create requirements.txt with:)
+- Surrogate keys for all dimensions  
+- Natural keys preserved as business identifiers  
+- Fact tables modeled at correct analytical grain  
+- Referential integrity enforced with foreign keys  
+- Event-level data stored in raw JSON for extensibility  
 
-nhl-api-py
-psycopg2-binary
+---
 
-Database Setup
+## Data Model
 
-Before running the script, load database migrations.
+### Dimensions
 
-This project uses two SQL migration layers located in /migrations:
+| Table | Description |
+|------|------------|
+| dim_date | Calendar dimension |
+| dim_player | Player master data |
+| dim_team | NHL teams |
+| dim_season | NHL seasons |
+| dim_venue | Game venues |
 
-001_init.sql → Creates teams and games
+---
 
-002_players.sql → Creates players and player_game_stats
+### Fact Tables
 
-Run them in order:
+| Table | Grain |
+|------|------|
+| fact_game | One row per NHL game |
+| fact_skater_game | One row per skater per game |
+| fact_goalie_game | One row per goalie per game |
+| fact_team_game | One row per team per game |
+| event_play | One row per play event |
 
--- in DBeaver or psql:
-\i migrations/001_init.sql
-\i migrations/002_players.sql
+---
 
+### Relationship Overview
 
-After applying migrations, refresh tables and confirm they exist.
+dim_player 1 ────< fact_skater_game
+dim_player 1 ────< fact_goalie_game
 
-Running the Loader
+dim_team 1 ────< fact_team_game
+dim_team 1 ────< fact_skater_game
+dim_team 1 ────< fact_goalie_game
 
-The main script is:
+dim_season 1 ────< fact_game
+dim_date 1 ────< fact_game
+dim_venue 1 ────< fact_game
 
-nhl_loader_2025_26.py
+fact_game 1 ────< event_play
 
+yaml
+Kopioi koodi
 
-Execute it:
+This structure enables multi-grain analytics while maintaining star-schema clarity.
 
-python nhl_loader_2025_26.py
+---
 
+## Python Scraping Layer
 
-What the process does:
+The Python pipeline uses:
 
-Fetches and upserts all NHL teams
+- `nhlpy.NHLClient`
+- PostgreSQL UPSERT logic
+- Data normalization across multiple endpoints
+- Roster + stats fusion to ensure player completeness
 
-Iterates through every day in the 2025–26 schedule window
+### Key features
 
-Stores all games with metadata
+- Combines roster and stats endpoints to avoid missing players
+- Normalizes inconsistent NHL API structures
+- Uses `ON CONFLICT` UPSERT logic to preserve and enrich records
+- Maintains player dimension as a slowly evolving entity
 
-Fetches boxscore data and fills:
+### Example logic
 
-players
+- Roster API → best bio fields  
+- Stats API → guarantees statistical coverage  
+- Both feed the same `dim_player` table using conflict resolution  
 
-player_game_stats
+---
 
-Database Schema Overview
-teams
- └─ team_id (PK)
+## Data Quality Strategy
 
-games
- └─ FK → teams.home_team_id
- └─ FK → teams.away_team_id
+- Natural keys enforced as UNIQUE constraints  
+- Surrogate keys used for warehouse joins  
+- Foreign keys enforce referential integrity  
+- JSON stored for event extensibility  
+- Deduplication handled during ingestion  
 
-players
- └─ player_id (PK)
- └─ FK → teams.current_team_id
+---
 
-player_game_stats
- └─ (game_id, player_id) PK
- └─ FK → games.game_id
- └─ FK → players.player_id
- └─ FK → teams.team_id
+## Use Cases
 
+This warehouse supports:
 
-This schema supports powerful analytics such as:
+- Player career analysis  
+- Team performance tracking  
+- Goalie efficiency analysis  
+- Event heatmaps  
+- Advanced derived metrics (xG, clutch, possession, etc.)  
+- BI dashboards and Python analytics  
 
-Player season totals
+---
 
-Game logs
+## Repository Structure
 
-Shot/goal distributions
+/sql
+/ddl
+/dimensions
+/facts
 
-Powerplay vs. even-strength breakdowns
+/python
+nhl_populate_dim_player.py
+...
 
-Predictive modelling
+/docs
+erd.png
+architecture.png
 
-Example Queries
-Top 10 Scorers
-SELECT p.full_name, SUM(s.goals + s.assists) AS points
-FROM player_game_stats s
-JOIN players p ON s.player_id = p.player_id
-JOIN games g ON s.game_id = g.game_id
-WHERE g.season = '20252026'
-GROUP BY p.full_name
-ORDER BY points DESC
-LIMIT 10;
+yaml
+Kopioi koodi
 
-Team Standings (Points)
-SELECT t.abbreviation,
-       SUM(CASE
-             WHEN (home_score > away_score AND t.team_id = home_team_id)
-               OR (away_score > home_score AND t.team_id = away_team_id)
-             THEN 2 ELSE 0 END) AS points
-FROM games
-JOIN teams t ON t.team_id IN (home_team_id, away_team_id)
-WHERE season = '20252026'
-GROUP BY abbreviation
-ORDER BY points DESC;
+---
 
-Roadmap
-Milestone	Target
-Add incremental update mode	Next
-Automated cron runner	Q2
-Full play-by-play ingestion	Q3
-xG model and Tableau/PowerBI dashboards	Q4
-Web API wrapper for queries	Optional
-Contributing
+## Why This Project Matters
 
-Pull requests, bug reports, and new feature ideas are welcome.
+This project demonstrates:
 
-If you add new fields to the pipeline, update:
+- End-to-end data engineering workflow  
+- Warehouse modeling discipline  
+- Python ETL design  
+- SQL constraint design  
+- Analytics-ready thinking  
+- Sports analytics domain expertise  
 
-migrations/*.sql
+It is designed as a **production-style analytical warehouse**, not a toy dataset.
 
-nhl_loader2.py
+---
 
-README
+## Limitations
 
-License
+- No orchestration layer yet  
+- No incremental change detection for facts  
+- No automated data quality framework  
 
-MIT License — free to use and modify.
+These are intentionally left as future extensions.
+
+---
+
+## Planned Extensions
+
+- Incremental load logic  
+- Season-over-season history tracking  
+- Advanced derived metrics  
+- BI dashboards  
+- ML-ready feature tables  
+
+---
+
+## Portfolio Intent
+
+This repository is published as a **portfolio case study** to demonstrate:
+
+- SQL modeling skills  
+- Python ingestion pipelines  
+- Data warehouse design  
+- Analytics engineering capability  
+
+It is not intended as a production deployment template, but as a demonstration of analytical architecture design.
+
+---
+
+## Author
+
+[Your Name]  
+Data Analyst / Analytics Engineer / Sports Analytics  
+
+---
+
+## License
+
+Shared for educational and portfolio purposes.
