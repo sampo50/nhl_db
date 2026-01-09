@@ -2,8 +2,6 @@
 
 End-to-end NHL analytics data warehouse built by scraping official NHL data with Python and modeling it into a star-schema warehouse in PostgreSQL.
 
-This project demonstrates **data ingestion, normalization, dimensional modeling, and analytics-ready design** for large-scale sports data.
-
 ---
 
 ## Project Overview
@@ -85,8 +83,6 @@ dim_venue 1 ────< fact_game
 
 fact_game 1 ────< event_play
 
-yaml
-Kopioi koodi
 
 This structure enables multi-grain analytics while maintaining star-schema clarity.
 
@@ -154,31 +150,15 @@ nhl_populate_dim_player.py
 erd.png
 architecture.png
 
-yaml
-Kopioi koodi
-
----
-
-## Why This Project Matters
-
-This project demonstrates:
-
-- End-to-end data engineering workflow  
-- Warehouse modeling discipline  
-- Python ETL design  
-- SQL constraint design  
-- Analytics-ready thinking  
-- Sports analytics domain expertise  
-
-It is designed as a **production-style analytical warehouse**, not a toy dataset.
-
 ---
 
 ## Limitations
 
 - No orchestration layer yet  
 - No incremental change detection for facts  
-- No automated data quality framework  
+- No automated data quality framework
+- No spatial data ingested
+- No seasons before 2025-26
 
 These are intentionally left as future extensions.
 
@@ -194,23 +174,10 @@ These are intentionally left as future extensions.
 
 ---
 
-## Portfolio Intent
-
-This repository is published as a **portfolio case study** to demonstrate:
-
-- SQL modeling skills  
-- Python ingestion pipelines  
-- Data warehouse design  
-- Analytics engineering capability  
-
-It is not intended as a production deployment template, but as a demonstration of analytical architecture design.
-
----
-
 ## Author
 
-[Your Name]  
-Data Analyst / Analytics Engineer / Sports Analytics  
+Sami Olavuo  
+Sports Analytics  
 
 ---
 
